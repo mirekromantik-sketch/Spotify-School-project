@@ -1,0 +1,106 @@
+/* dom_zalogowany.css - Zmodyfikowany */
+
+body { /* Upewnij się, że html, body i #root zajmują całą wysokość */
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: black;
+  color: white;
+  overflow: hidden; /* Zapobiega przewijaniu całego body, jeśli elementy fixed się nakładają */
+}
+
+.dom-zalogowany-wrapper {
+  display: grid;
+  /* Definicja kolumn:
+     - Pierwsza kolumna dla biblioteki (np. 58px szerokości, jak w Twoim margin-left)
+     - Druga kolumna dla głównej zawartości (elastyczna)
+     - Trzecia kolumna dla kolejki (np. 270px szerokości)
+  */
+  grid-template-columns: 58px 1fr 270px;
+  /* Definicja wierszy:
+     - Pierwszy wiersz dla topnav (np. 50px wysokości)
+     - Drugi wiersz dla głównej treści (elastyczny, calc(100vh - 50px - 55px) to wysokość viewportu minus topnav i playerbar)
+  */
+  grid-template-rows: 50px calc(100vh - 50px - 55px); /* Odjęcie topnav i playerbar height */
+  height: 100vh; /* Wrapper zajmuje całą wysokość viewportu */
+  overflow: hidden; /* Ukrywa nadmiarową zawartość */
+}
+
+/* Umiejscowienie elementów w siatce */
+.topnav {
+  grid-column: 1 / span 3; /* Zajmuje wszystkie 3 kolumny */
+  grid-row: 1; /* W pierwszym wierszu */
+  background-color: black;
+  height: 50px; /* Nadal stała wysokość */
+  display: flex; /* Użyj flexbox dla elementów wewnątrz topnav */
+  align-items: center;
+  padding: 0 16px; /* Dopasuj padding do playbar dla spójności */
+  /* remove fixed positioning if it's managed by grid */
+  position: relative; /* lub relative, nie fixed, jeśli jest w siatce */
+  width: auto; /* Domyślna szerokość dla elementu grid */
+  top: auto; /* Usuń to, jeśli element jest w gridzie */
+  left: auto; /* Usuń to, jeśli element jest w gridzie */
+}
+
+.left-icon {
+  /* Style for your FontAwesome icon */
+  color: white;
+  font-size: 20px;
+  margin-right: 15px; /* Odstęp od przycisku */
+}
+
+.topnav button {
+  background-color: #1db954; /* Przykładowy kolor, jak na Spotify */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.biblioteka {
+  grid-column: 1; /* W pierwszej kolumnie */
+  grid-row: 2; /* W drugim wierszu */
+  background-color: #2a2a2a;
+  width: auto; /* Kontrolowane przez grid-template-columns */
+  height: auto; /* Kontrolowane przez grid-template-rows */
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  /* remove fixed positioning and other conflicting styles */
+  position: relative;
+  top: auto;
+  left: auto;
+}
+
+.glowne {
+  grid-column: 2; /* W drugiej kolumnie */
+  grid-row: 2; /* W drugim wierszu */
+  background-color: #121212; /* Typowy ciemniejszy kolor tła spotify */
+  width: auto; /* Kontrolowane przez grid-template-columns */
+  height: auto; /* Kontrolowane przez grid-template-rows */
+  border-radius: 10px;
+  /* remove fixed positioning and other conflicting styles */
+  position: relative;
+  margin: 0; /* Usuń marginesy, jeśli grid to kontroluje */
+  top: auto;
+  left: auto;
+}
+
+.kolejka {
+  grid-column: 3; /* W trzeciej kolumnie */
+  grid-row: 2; /* W drugim wierszu */
+  background-color: #2a2a2a;
+  width: auto; /* Kontrolowane przez grid-template-columns */
+  height: auto; /* Kontrolowane przez grid-template-rows */
+  border-radius: 10px;
+  /* remove fixed positioning and other conflicting styles */
+  position: relative;
+  top: auto;
+  bottom: auto;
+  right: auto;
+  margin: 0; /* Usuń marginesy, jeśli grid to kontroluje */
+}
+
+/* PlayerBar - nadal pozostaje fixed, ale jego kontekst jest już stabilny */
+/* Brak zmian w PlayerBar.css */

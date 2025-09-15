@@ -1,0 +1,35 @@
+/* Scope the background and flex layout only to the login page */
+.login-wrapper {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom, #363636, #050505);
+}
+
+/* Centered login box */
+.login {
+  background-color: #212121;
+  padding: 280px 450px;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+/* Button styling */
+.login button {
+  background-color: #1DB954;
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.login button:hover {
+  background-color: #1ed760;
+}

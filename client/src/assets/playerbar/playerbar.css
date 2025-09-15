@@ -1,0 +1,190 @@
+/* playerbar.css - Zmodyfikowany dla wyglądu jak na obrazku */
+
+.playbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 55px; /* Wysokość może być nieco mniejsza niż standardowe 60px spotify */
+  background-color: black;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px; /* Zmniejszony padding boczny, jak na obrazku */
+  color: #ffffffa0;
+  z-index: 1000;
+}
+
+/* Left section */
+.player-left {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Zmniejszony odstęp między elementami w lewej sekcji, jak na obrazku */
+  width: 250px; /* Utrzymana stała szerokość, aby kontrolki były wyśrodkowane */
+  flex-shrink: 0;
+}
+
+.album-art {
+  width: 40px; /* Zmniejszona szerokość album-art, jak na obrazku (około 40px) */
+  height: 40px; /* Zmniejszona wysokość album-art */
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.track-info {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  flex-grow: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.track-title {
+  color: white;
+  font-weight: bold;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.track-artist {
+  color: #aaaaaa;
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Center section */
+.controls-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: auto;
+  min-width: 300px; /* Minimum szerokości dla kontrolek */
+  /* min-height: 60px; - Ta właściwość nie jest już potrzebna, bo playbar ma stałą wysokość */
+}
+
+.controls {
+  display: flex;
+  margin: 0;
+  gap: 20px; /* Odstępy między ikonami kontrolnymi */
+  justify-content: center;
+}
+
+.controls button {
+  background: none;
+  border: none;
+  color: #ffffff70; /* Standardowy kolor ikony */
+  font-size: 22px; /* Rozmiar ikon */
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0 5px; /* Dodatkowy padding, aby ikony były bardziej klikalne i miały odstęp */
+}
+
+.controls button:hover {
+  color: white; /* Kolor po najechaniu */
+}
+
+/* Specjalne style dla ikon shuffle i repeat, gdy są aktywne */
+.controls button.shuffle.active,
+.controls button.repeat.active {
+  color: #1db954; /* Kolor zielony dla aktywnych trybów */
+}
+
+/* Styl dla przycisku play/pause - często jest większy */
+.controls button.play-pause {
+  font-size: 28px; /* Większy rozmiar dla przycisku play/pause */
+  color: white; /* Zawsze biały lub bardziej wyrazisty */
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Zmniejszony odstęp między czasem a paskiem postępu */
+  margin-top: 5px;
+  width: 100%;
+  max-width: 400px; /* Nadal ogranicza szerokość paska postępu, dostosuj jeśli potrzeba */
+}
+
+.progress-bar {
+  flex-grow: 1;
+  height: 4px; /* Zmniejszona wysokość paska postępu, jak na obrazku */
+  background-color: #535353; /* Ciemniejszy kolor tła paska postępu */
+  border-radius: 2px; /* Bardziej subtelne zaokrąglenie */
+  overflow: hidden;
+  position: relative;
+}
+
+.progress {
+  height: 100%;
+  width: 0;
+  background-color: #1db954; /* Zielony kolor paska postępu, jak na Spotify */
+  transition: width 0.3s linear;
+}
+
+.time {
+  font-size: 11px; /* Mniejszy rozmiar czcionki dla czasu */
+  color: #aaaaaa; /* Ciemniejszy kolor czcionki */
+  white-space: nowrap;
+}
+
+/* Right section */
+.player-right {
+  display: flex;
+  align-items: center;
+  /* Na obrazku prawa sekcja wydaje się mieć zmienną szerokość,
+     ale dla stabilności możemy dać jej max-width lub stałą szerokość.
+     Jeśli ma być responsywna, możemy polegać na gap i zawartości. */
+  gap: 16px; /* Odstępy między ikonami w prawej sekcji */
+  flex-shrink: 0; /* Zapobiega kurczeniu się */
+  justify-content: flex-end; /* Wyrównuje ikony do prawej */
+}
+
+/* Style dla wszystkich ikon w prawej sekcji */
+.player-right button {
+  background: none;
+  border: none;
+  color: #ffffff70; /* Standardowy kolor ikon */
+  font-size: 16px; /* Mniejszy rozmiar dla ikon w prawej sekcji */
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0 4px; /* Dodatkowy padding dla łatwiejszego klikania */
+}
+
+.player-right button:hover {
+  color: white; /* Kolor po najechaniu */
+}
+
+.volume-slider {
+  width: 90px; /* Dostosowana szerokość suwaka głośności */
+  margin-left: 8px; /* Odstęp od poprzedniej ikony */
+  height: 4px; /* Wysokość suwaka */
+  -webkit-appearance: none; /* Ukrywa domyślny wygląd suwaka */
+  background: #535353; /* Tło suwaka */
+  border-radius: 2px;
+  outline: none; /* Usuwa obramowanie po kliknięciu */
+}
+
+/* Styl dla "ścieżki" (track) suwaka głośności */
+.volume-slider::-webkit-slider-runnable-track {
+  background: #535353;
+  border-radius: 2px;
+  height: 4px;
+}
+
+/* Styl dla "kciuka" (thumb) suwaka głośności */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; /* Szerokość kciuka */
+  height: 12px; /* Wysokość kciuka */
+  background: white; /* Kolor kciuka */
+  border-radius: 50%; /* Okrągły kształt */
+  cursor: pointer;
+  margin-top: -4px; /* Centruje kciuk na ścieżce */
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5); /* Lekki cień */
+}
