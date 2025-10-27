@@ -7,6 +7,8 @@ import {
   faBackward,
   faRandom,
   faRepeat,
+  faVolumeHigh,
+  faList,
 } from '@fortawesome/free-solid-svg-icons';
 import '../playerbar/playerbar.css';
 
@@ -18,85 +20,73 @@ function PlayerBar() {
   const [player, setPlayer] = useState(null);
   const [deviceId, setDeviceId] = useState(null);
   const [accessToken, setAccessToken] = useState(null);
+  const [volume, setVolume] = useState(0.5);
+  const [deviceInfo, setDeviceInfo] = useState(null);
 
-  // Fetch access token from backend
+  const [progressMs, setProgressMs] = useState(0);
+  const [durationMs, setDurationMs] = useState(0);
+
+  const formatTime = (ms) => {
+    if (!ms) return "0:00";
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  };
+
   const getAccessToken = async () => {
     const response = await fetch('http://localhost:5000/get_access_token');
     const data = await response.json();
     return data.access_token;
   };
 
-  // Transfer playback to your player device
-  const transferPlaybackHere = async (device_id, token) => {
-    await fetch('https://api.spotify.com/v1/me/player', {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        device_ids: [device_id],
-        play: false,
-      }),
-    });
-  };
-
-  // Toggle shuffle on Spotify
   const toggleShuffle = async () => {
     if (!accessToken || !deviceId) return;
-
     const newShuffleState = !shuffleActive;
     setShuffleActive(newShuffleState);
 
     await fetch(
       `https://api.spotify.com/v1/me/player/shuffle?state=${newShuffleState}&device_id=${deviceId}`,
-      {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` } }
     );
   };
 
-  // Toggle repeat on Spotify
   const toggleRepeat = async () => {
     if (!accessToken || !deviceId) return;
-
-    // Cycle repeat mode: off -> context -> track -> off
-    // For simplicity, toggle between off and context
     const newRepeatState = !repeatActive;
     setRepeatActive(newRepeatState);
 
     await fetch(
       `https://api.spotify.com/v1/me/player/repeat?state=${newRepeatState ? 'context' : 'off'}&device_id=${deviceId}`,
-      {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` } }
     );
   };
 
-  // Play or pause playback
   const togglePlayPause = () => {
     if (!player) return;
-
     player.togglePlay().catch((e) => console.error(e));
   };
 
-  // Play previous track
   const onPrevious = () => {
     if (!player) return;
-
     player.previousTrack().catch((e) => console.error(e));
   };
 
-  // Play next track
   const onNext = () => {
     if (!player) return;
-
     player.nextTrack().catch((e) => console.error(e));
   };
 
-  // Fetch current playback state from Spotify Web API
+  const handleVolumeChange = (e) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    e.target.style.setProperty('--value', `${newVolume * 100}%`);
+
+    if (player) {
+      player.setVolume(newVolume).catch((err) => console.error(err));
+    }
+  };
+
+  // Fetch currently playing track from any device
   const fetchCurrentPlaybackState = async (token) => {
     try {
       const res = await fetch('https://api.spotify.com/v1/me/player', {
@@ -108,6 +98,9 @@ function PlayerBar() {
         setIsPlaying(false);
         setShuffleActive(false);
         setRepeatActive(false);
+        setDeviceInfo(null);
+        setProgressMs(0);
+        setDurationMs(0);
         return;
       }
 
@@ -117,97 +110,92 @@ function PlayerBar() {
       if (data.item) {
         setTrack({
           name: data.item.name,
-          artists: data.item.artists.map((artist) => artist.name).join(', '),
+          artists: data.item.artists.map((a) => a.name).join(', '),
           albumImage: data.item.album.images[0].url,
         });
+        setDurationMs(data.item.duration_ms);
       } else {
         setTrack(null);
       }
+
       setIsPlaying(data.is_playing);
       setShuffleActive(data.shuffle_state);
-      // repeat_state: "off", "context", or "track"
       setRepeatActive(data.repeat_state !== 'off');
-    } catch (error) {
-      console.error('Error fetching current playback state:', error);
+      setProgressMs(data.progress_ms || 0);
+
+      if (data.device) {
+        setDeviceInfo({
+          name: data.device.name,
+          type: data.device.type,
+          isActive: data.device.is_active,
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching playback state:', err);
     }
   };
 
   useEffect(() => {
-    // Load Spotify SDK script
-    const script = document.createElement('script');
-    script.src = 'https://sdk.scdn.co/spotify-player.js';
-    script.async = true;
-
-    document.body.appendChild(script);
-
-    window.onSpotifyWebPlaybackSDKReady = async () => {
+    const initPlayer = async () => {
       const token = await getAccessToken();
       setAccessToken(token);
 
-      const player = new window.Spotify.Player({
-        name: 'React Spotify Player',
-        getOAuthToken: (cb) => {
-          cb(token);
-        },
-        volume: 0.5,
-      });
+      const script = document.createElement('script');
+      script.src = 'https://sdk.scdn.co/spotify-player.js';
+      script.async = true;
+      document.body.appendChild(script);
 
-      // Error handling
-      player.addListener('initialization_error', ({ message }) => {
-        console.error('Initialization Error:', message);
-      });
-      player.addListener('authentication_error', ({ message }) => {
-        console.error('Authentication Error:', message);
-      });
-      player.addListener('account_error', ({ message }) => {
-        console.error('Account Error:', message);
-      });
-      player.addListener('playback_error', ({ message }) => {
-        console.error('Playback Error:', message);
-      });
-
-      // Playback status updates
-      player.addListener('player_state_changed', (state) => {
-        if (!state) {
-          setTrack(null);
-          setIsPlaying(false);
-          return;
-        }
-
-        const currentTrack = state.track_window.current_track;
-        setTrack({
-          name: currentTrack.name,
-          artists: currentTrack.artists.map((a) => a.name).join(', '),
-          albumImage: currentTrack.album.images[0].url,
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        const player = new window.Spotify.Player({
+          name: 'React Spotify Player',
+          getOAuthToken: (cb) => cb(token),
+          volume: 0.5,
         });
 
-        setIsPlaying(!state.paused);
-        setShuffleActive(state.shuffle);
-        // repeat_mode: 0 (off), 1 (context), 2 (track)
-        setRepeatActive(state.repeat_mode !== 0);
-      });
+        player.addListener('player_state_changed', (state) => {
+          if (!state) return;
+          const currentTrack = state.track_window.current_track;
+          if (currentTrack) {
+            setTrack({
+              name: currentTrack.name,
+              artists: currentTrack.artists.map((a) => a.name).join(', '),
+              albumImage: currentTrack.album.images[0].url,
+            });
+          }
+          setIsPlaying(!state.paused);
+          setProgressMs(state.position);
+          setDurationMs(state.duration);
+        });
 
-      // Ready
-      player.addListener('ready', ({ device_id }) => {
-        setDeviceId(device_id);
-        transferPlaybackHere(device_id, token);
-      });
+        player.addListener('ready', ({ device_id }) => {
+          setDeviceId(device_id);
+          // **Removed transferPlaybackHere()** so web player doesn't take over
+        });
 
-      player.connect();
-      setPlayer(player);
+        player.connect();
+        setPlayer(player);
+      };
 
-      // Initial fetch of current playback info for syncing UI
+      // Poll every 5 seconds for any active playback
+      const intervalId = setInterval(() => {
+        fetchCurrentPlaybackState(token);
+      }, 5000);
+
+      // initial fetch
       fetchCurrentPlaybackState(token);
+
+      return () => {
+        clearInterval(intervalId);
+        document.body.removeChild(script);
+      };
     };
 
-    return () => {
-      document.body.removeChild(script);
-    };
+    initPlayer();
   }, []);
 
   return (
     <div className="playbar">
-      {/* Left section with album art + track info */}
+      {/* Left */}
       <div className="player-left">
         {track ? (
           <>
@@ -215,6 +203,11 @@ function PlayerBar() {
             <div className="track-info">
               <div className="track-title">{track.name}</div>
               <div className="track-artist">{track.artists}</div>
+              {deviceInfo && (
+                <div className="device-info">
+                  Playing on: {deviceInfo.name} ({deviceInfo.type})
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -224,7 +217,7 @@ function PlayerBar() {
         )}
       </div>
 
-      {/* Center controls */}
+      {/* Center */}
       <div className="controls-section">
         <div className="controls">
           <button
@@ -239,7 +232,11 @@ function PlayerBar() {
             <FontAwesomeIcon icon={faBackward} />
           </button>
 
-          <button onClick={togglePlayPause} aria-label={isPlaying ? 'Pause' : 'Play'}>
+          <button
+            className="play-pause"
+            onClick={togglePlayPause}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
             <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
           </button>
 
@@ -256,9 +253,36 @@ function PlayerBar() {
           </button>
         </div>
 
-        <div className="progress-bar">
-          <div className="progress" />
+        {/* Progress bar */}
+        <div className="progress-container">
+          <span className="time">{formatTime(progressMs)}</span>
+          <div className="progress-bar">
+            <div
+              className="progress"
+              style={{
+                width: durationMs ? `${(progressMs / durationMs) * 100}%` : "0%",
+              }}
+            ></div>
+          </div>
+          <span className="time">{formatTime(durationMs)}</span>
         </div>
+      </div>
+
+      {/* Right */}
+      <div className="player-right">
+        <button aria-label="Queue">
+          <FontAwesomeIcon icon={faList} />
+        </button>
+        <FontAwesomeIcon icon={faVolumeHigh} />
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={volume}
+          onChange={handleVolumeChange}
+          className="volume-slider"
+        />
       </div>
     </div>
   );

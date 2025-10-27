@@ -1,0 +1,14 @@
+  .kolejka {
+    grid-column: 3; /* W trzeciej kolumnie */
+    grid-row: 2; /* W drugim wierszu */
+    background-color: #2a2a2a;
+    width: auto; /* Kontrolowane przez grid-template-columns */
+    height: auto; /* Kontrolowane przez grid-template-rows */
+    border-radius: 10px;
+    /* remove fixed positioning and other conflicting styles */
+    position: relative;
+    top: auto;
+    bottom: auto;
+    right: auto;
+    margin: 0; /* Usuń marginesy, jeśli grid to kontroluje */
+  }

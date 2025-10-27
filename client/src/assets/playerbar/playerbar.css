@@ -5,12 +5,11 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 55px; /* Wysokość może być nieco mniejsza niż standardowe 60px spotify */
+  height: 85px;
   background-color: black;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 16px; /* Zmniejszony padding boczny, jak na obrazku */
+  padding: 0 16px;
   color: #ffffffa0;
   z-index: 1000;
 }
@@ -19,9 +18,10 @@
 .player-left {
   display: flex;
   align-items: center;
-  gap: 12px; /* Zmniejszony odstęp między elementami w lewej sekcji, jak na obrazku */
-  width: 250px; /* Utrzymana stała szerokość, aby kontrolki były wyśrodkowane */
-  flex-shrink: 0;
+  gap: 12px;
+  min-width: 0; /* allow flex overflow handling */
+  overflow: hidden;
+  flex: 1;
 }
 
 .album-art {
@@ -35,23 +35,11 @@
   display: flex;
   flex-direction: column;
   font-size: 13px;
-  flex-grow: 1;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
-.track-title {
-  color: white;
-  font-weight: bold;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
+.track-title,
 .track-artist {
-  color: #aaaaaa;
-  font-size: 12px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -59,20 +47,18 @@
 
 /* Center section */
 .controls-section {
+  position: absolute;   /* take out of flex flow */
+  left: 50%;
+  transform: translateX(-50%); /* true horizontal centering */
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex-grow: 1;
-  flex-shrink: 1;
-  flex-basis: auto;
-  min-width: 300px; /* Minimum szerokości dla kontrolek */
-  /* min-height: 60px; - Ta właściwość nie jest już potrzebna, bo playbar ma stałą wysokość */
+  min-width: 300px;
 }
 
 .controls {
   display: flex;
-  margin: 0;
-  gap: 20px; /* Odstępy między ikonami kontrolnymi */
+  gap: 20px;
   justify-content: center;
 }
 
@@ -107,13 +93,14 @@
   align-items: center;
   gap: 8px; /* Zmniejszony odstęp między czasem a paskiem postępu */
   margin-top: 5px;
-  width: 100%;
-  max-width: 400px; /* Nadal ogranicza szerokość paska postępu, dostosuj jeśli potrzeba */
+  width: 150%;
+  max-width: 500px; /* Nadal ogranicza szerokość paska postępu, dostosuj jeśli potrzeba */
 }
 
 .progress-bar {
   flex-grow: 1;
-  height: 4px; /* Zmniejszona wysokość paska postępu, jak na obrazku */
+  width: 100px;
+  height: 6px; /* Zmniejszona wysokość paska postępu, jak na obrazku */
   background-color: #535353; /* Ciemniejszy kolor tła paska postępu */
   border-radius: 2px; /* Bardziej subtelne zaokrąglenie */
   overflow: hidden;
@@ -123,7 +110,7 @@
 .progress {
   height: 100%;
   width: 0;
-  background-color: #1db954; /* Zielony kolor paska postępu, jak na Spotify */
+  background-color: white; /* Zielony kolor paska postępu, jak na Spotify */
   transition: width 0.3s linear;
 }
 
@@ -137,12 +124,10 @@
 .player-right {
   display: flex;
   align-items: center;
-  /* Na obrazku prawa sekcja wydaje się mieć zmienną szerokość,
-     ale dla stabilności możemy dać jej max-width lub stałą szerokość.
-     Jeśli ma być responsywna, możemy polegać na gap i zawartości. */
-  gap: 16px; /* Odstępy między ikonami w prawej sekcji */
-  flex-shrink: 0; /* Zapobiega kurczeniu się */
-  justify-content: flex-end; /* Wyrównuje ikony do prawej */
+  justify-content: flex-end;
+  gap: 16px;
+  flex: 1;
+  margin-right: 35px;
 }
 
 /* Style dla wszystkich ikon w prawej sekcji */
@@ -161,30 +146,80 @@
 }
 
 .volume-slider {
-  width: 90px; /* Dostosowana szerokość suwaka głośności */
-  margin-left: 8px; /* Odstęp od poprzedniej ikony */
-  height: 4px; /* Wysokość suwaka */
-  -webkit-appearance: none; /* Ukrywa domyślny wygląd suwaka */
-  background: #535353; /* Tło suwaka */
-  border-radius: 2px;
-  outline: none; /* Usuwa obramowanie po kliknięciu */
-}
-
-/* Styl dla "ścieżki" (track) suwaka głośności */
-.volume-slider::-webkit-slider-runnable-track {
+  width: 90px;
+  height: 4px;
+  -webkit-appearance: none;
   background: #535353;
   border-radius: 2px;
-  height: 4px;
+  outline: none;
+  cursor: pointer;
+
+  /* CSS variables for dynamic styling */
+  --value: 50%;
+  --fill-color: white; /* default fill */
+  --thumb-opacity: 0;  /* default hidden */
 }
 
-/* Styl dla "kciuka" (thumb) suwaka głośności */
+/* Track with dynamic fill */
+.volume-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--fill-color) 0%,
+    var(--fill-color) var(--value),
+    #535353 var(--value),
+    #535353 100%
+  );
+}
+
+/* Thumb */
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px; /* Szerokość kciuka */
-  height: 12px; /* Wysokość kciuka */
-  background: white; /* Kolor kciuka */
-  border-radius: 50%; /* Okrągły kształt */
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  margin-top: -4px;
   cursor: pointer;
-  margin-top: -4px; /* Centruje kciuk na ścieżce */
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5); /* Lekki cień */
+  opacity: var(--thumb-opacity);
+  transition: opacity 0.2s ease;
+  box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+/* Hover state: show thumb and change fill to green */
+.volume-slider:hover {
+  --thumb-opacity: 1;
+  --fill-color: #00ff00;
+}
+
+/* Firefox compatibility */
+.volume-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #535353;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border: none;
+}
+
+.volume-slider:hover::-moz-range-thumb {
+  opacity: 1;
+}
+
+.greenbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;          /* thickness of the green bar */
+  background-color: #1db954; /* Spotify green */
+  z-index: 1001;         /* below .playbar (1000), above background */
 }

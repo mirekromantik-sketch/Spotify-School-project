@@ -1,15 +1,15 @@
 // src/App.jsx
 import { Routes, Route } from 'react-router-dom';
-import Dom from './strony/dom';
+import Homepage from './strony/homepage';
 import Login from './strony/login';
-import DomZalogowany from './strony/dom_zalogowany';
+import Main from './strony/main';
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Dom />} />
+      <Route path="/" element={<Homepage />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/dom_zalogowany" element={<DomZalogowany />} />
+      <Route path="/main" element={<Main />} />
     </Routes>
   );
 }

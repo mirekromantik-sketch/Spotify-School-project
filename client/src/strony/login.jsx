@@ -16,7 +16,7 @@ function Login() {
       if (accessToken) {
         localStorage.setItem('spotify_access_token', accessToken);
         localStorage.setItem('spotify_refresh_token', refreshToken);
-        navigate('/dom_zalogowany');
+        navigate('/main');
       }
     }
   }, [navigate]);
