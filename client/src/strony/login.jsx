@@ -1,7 +1,7 @@
 // src/strony/login.jsx
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './CSS/login.css'; // Assuming you have a CSS file for styling
+import './CSS/login.css'; //
 
 function Login() {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ function Login() {
   }, [navigate]);
 
   const handleSpotifyLogin = () => {
-    window.location.href = 'http://127.0.0.1:5000/login'; // Calls your backend
+    window.location.href = 'http://127.0.0.1:5000/login'; //
   };
 
   return (

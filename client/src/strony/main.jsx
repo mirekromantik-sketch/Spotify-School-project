@@ -2,14 +2,10 @@ import React, { useState } from 'react';
 import Sidebar from '../assets/sidebar/sidebar.jsx';
 import './CSS/main.css';
 import PlayerBar from '../assets/playerbar/playerbar.jsx';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEllipsis } from '@fortawesome/free-solid-svg-icons';
-import { useNavigate } from 'react-router-dom';
-import Queue from '../assets/queue/queue.jsx'
-
+import Queue from '../assets/queue/queue.jsx';
+import TopNav from '../assets/Topnav/TopNav.jsx';
 
 function Main() {
-  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
@@ -20,10 +16,7 @@ function Main() {
       }}
     >
       {/* Top navigation */}
-      <div className="topnav">
-        <div className="left-icon"><FontAwesomeIcon icon={faEllipsis} /></div>
-        <button onClick={() => navigate('/login')}>Go to Login</button>
-      </div>
+      <TopNav />
 
       {/* Sidebar */}
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
@@ -33,7 +26,7 @@ function Main() {
         <p></p>
       </div>
 
-      <Queue/>
+      <Queue />
 
       {/* PlayerBar */}
       <PlayerBar />

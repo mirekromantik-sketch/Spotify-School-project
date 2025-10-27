@@ -1,0 +1,68 @@
+/* topnav.css */
+.topnav {
+  grid-column: 1 / span 3;
+  grid-row: 1;
+  background-color: black;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  position: relative;
+}
+
+.left-icon {
+  color: white;
+  font-size: 20px;
+  margin-right: 15px;
+}
+
+.topnav button {
+  background-color: #2a2a2a;
+  margin-left: 37.6%;
+  color: white;
+  font-size: 22px;
+  border: none;
+  padding: 10px 13.5px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.BackButton {
+  position: absolute;
+  left: 60px;
+}
+
+.ForwardButton {
+  position: absolute;
+  left: 90px;
+}
+
+.SearchContainer {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 450px;
+}
+
+.SearchBar {
+  width: 100%;
+  height: 35px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: none;
+  background-color: #2a2a2a;
+  color: white;
+  font-size: 16px;
+}
+
+.SearchBar::placeholder {
+  color: #aaa;
+}
+
+.SearchBar:focus {
+  outline: 2px solid #1db954;
+  background-color: #1a1a1a;
+}
+
+
