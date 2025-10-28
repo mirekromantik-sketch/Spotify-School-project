@@ -5,28 +5,24 @@ const crypto = require('crypto');
 const cors = require('cors');
 const querystring = require('querystring');
 const cookieParser = require('cookie-parser');
-const db = require('./db'); // MySQL connection
+const db = require('./db'); // SQLite connection
 
 // Spotify credentials
-const client_id = 'fd982323aaea43209c7310a79caf569e'; 
-const client_secret = '9c6b8aa65dbb40fc90acd0a2113d42ce'; 
-const redirect_uri = 'http://127.0.0.1:5000/callback'; 
+const client_id = 'fd982323aaea43209c7310a79caf569e';
+const client_secret = '9c6b8aa65dbb40fc90acd0a2113d42ce';
+const redirect_uri = 'http://127.0.0.1:5000/callback';
 
 const generateRandomString = (length) => {
   return crypto.randomBytes(60).toString('hex').slice(0, length);
 };
 
 const stateKey = 'spotify_auth_state';
-
 const app = express();
 
 app.use(express.static(__dirname + '/public'))
    .use(cors())
    .use(cookieParser())
    .use(express.json());
-
-// --- In-memory token storage per user (for demo, replace with DB for production) ---
-let userTokens = {}; // { spotify_id: { access_token, refresh_token, expires_at } }
 
 // --- Login endpoint ---
 app.get('/login', (req, res) => {
@@ -50,7 +46,7 @@ app.get('/callback', (req, res) => {
   const state = req.query.state || null;
   const storedState = req.cookies ? req.cookies[stateKey] : null;
 
-  if (state === null || state !== storedState) {
+  if (!state || state !== storedState) {
     return res.redirect('/#' + querystring.stringify({ error: 'state_mismatch' }));
   }
 
@@ -72,7 +68,6 @@ app.get('/callback', (req, res) => {
 
   request.post(authOptions, (error, response, body) => {
     if (!error && response.statusCode === 200) {
-
       const access_token = body.access_token;
       const refresh_token = body.refresh_token;
       const expires_at = Date.now() + body.expires_in * 1000;
@@ -84,7 +79,7 @@ app.get('/callback', (req, res) => {
         json: true
       };
 
-      request.get(options, async (error, response, body) => {
+      request.get(options, (error, response, body) => {
         if (error) {
           console.error('Error fetching user profile:', error);
           return res.status(500).send('Failed to fetch user profile');
@@ -93,32 +88,30 @@ app.get('/callback', (req, res) => {
         const { id: spotify_id, display_name: username, email, external_urls } = body;
         const spotify_profile_url = external_urls.spotify;
 
-        // Save/update user in DB
+        // Save/update user in SQLite with tokens
         try {
-          await db.query(
-            `INSERT INTO Users (username, email, spotify_id, spotify_profile_url) 
-             VALUES (?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE username = VALUES(username), email = VALUES(email), spotify_profile_url = VALUES(spotify_profile_url)`,
-            [username, email, spotify_id, spotify_profile_url]
-          );
-          console.log('User saved to DB:', username);
+          db.prepare(`
+            INSERT OR REPLACE INTO Users (
+              spotify_id, username, email, spotify_profile_url,
+              access_token, refresh_token, expires_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `).run(spotify_id, username, email, spotify_profile_url, access_token, refresh_token, expires_at);
+
+          console.log('User saved/updated:', username);
         } catch (err) {
-          console.error('Failed to save user to DB:', err);
+          console.error('Failed to save user to SQLite:', err);
         }
 
-        // Save tokens in memory for this user
-        userTokens[spotify_id] = { access_token, refresh_token, expires_at };
-
-        // Redirect to frontend with Spotify ID
+        // Redirect to frontend with hash
         const frontendUri = 'http://localhost:5173';
         res.redirect(`${frontendUri}/main#` +
           querystring.stringify({
-            access_token: access_token,
-            refresh_token: refresh_token,
-            spotify_id: spotify_id
+            access_token,
+            refresh_token,
+            spotify_id
           }));
       });
-
     } else {
       res.redirect('/#' + querystring.stringify({ error: 'invalid_token' }));
     }
@@ -126,41 +119,53 @@ app.get('/callback', (req, res) => {
 });
 
 // --- Endpoint to get a valid access token ---
-app.get('/get_access_token/:spotify_id', (req, res) => {
+app.get('/get_access_token/:spotify_id', async (req, res) => {
   const spotify_id = req.params.spotify_id;
-  const user = userTokens[spotify_id];
 
-  if (!user) return res.status(400).json({ error: 'User not authenticated' });
+  try {
+    const user = db.prepare(`
+      SELECT access_token, refresh_token, expires_at FROM Users WHERE spotify_id = ?
+    `).get(spotify_id);
 
-  const now = Date.now();
+    if (!user) return res.status(400).json({ error: 'User not authenticated' });
 
-  // Refresh token if expired
-  if (now >= user.expires_at - 60000) {
-    const authOptions = {
-      url: 'https://accounts.spotify.com/api/token',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + (Buffer.from(client_id + ':' + client_secret).toString('base64'))
-      },
-      form: {
-        grant_type: 'refresh_token',
-        refresh_token: user.refresh_token
-      },
-      json: true
-    };
+    const now = Date.now();
 
-    request.post(authOptions, (error, response, body) => {
-      if (!error && response.statusCode === 200) {
-        user.access_token = body.access_token;
-        user.expires_at = Date.now() + body.expires_in * 1000;
-        res.json({ access_token: user.access_token });
-      } else {
-        console.error('Failed to refresh token', error || body);
-        res.status(500).json({ error: 'Failed to refresh access token' });
-      }
-    });
-  } else {
-    res.json({ access_token: user.access_token });
+    // Refresh if expired
+    if (now >= user.expires_at - 60000) {
+      const authOptions = {
+        url: 'https://accounts.spotify.com/api/token',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + (Buffer.from(client_id + ':' + client_secret).toString('base64'))
+        },
+        form: {
+          grant_type: 'refresh_token',
+          refresh_token: user.refresh_token
+        },
+        json: true
+      };
+
+      request.post(authOptions, (error, response, body) => {
+        if (!error && response.statusCode === 200) {
+          const newAccessToken = body.access_token;
+          const expiresAt = Date.now() + body.expires_in * 1000;
+
+          db.prepare(`UPDATE Users SET access_token = ?, expires_at = ? WHERE spotify_id = ?`)
+            .run(newAccessToken, expiresAt, spotify_id);
+
+          return res.json({ access_token: newAccessToken });
+        } else {
+          console.error('Failed to refresh token', error || body);
+          return res.status(500).json({ error: 'Failed to refresh access token' });
+        }
+      });
+    } else {
+      return res.json({ access_token: user.access_token });
+    }
+  } catch (err) {
+    console.error('Database error', err);
+    return res.status(500).json({ error: 'Database error' });
   }
 });
 

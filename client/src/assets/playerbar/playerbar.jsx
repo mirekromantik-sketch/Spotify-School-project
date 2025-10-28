@@ -19,75 +19,45 @@ function PlayerBar() {
   const [track, setTrack] = useState(null);
   const [player, setPlayer] = useState(null);
   const [deviceId, setDeviceId] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
   const [volume, setVolume] = useState(0.5);
   const [deviceInfo, setDeviceInfo] = useState(null);
-
   const [progressMs, setProgressMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
 
+  // --- Helper to format time ---
   const formatTime = (ms) => {
-    if (!ms) return "0:00";
+    if (!ms) return '0:00';
     const minutes = Math.floor(ms / 60000);
     const seconds = Math.floor((ms % 60000) / 1000);
-    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+  // --- Get access token from backend ---
   const getAccessToken = async () => {
-    const response = await fetch('http://localhost:5000/get_access_token');
-    const data = await response.json();
-    return data.access_token;
-  };
+    const spotifyId = localStorage.getItem('spotify_id');
+    if (!spotifyId) {
+      console.error('No Spotify ID found in localStorage');
+      return null;
+    }
 
-  const toggleShuffle = async () => {
-    if (!accessToken || !deviceId) return;
-    const newShuffleState = !shuffleActive;
-    setShuffleActive(newShuffleState);
-
-    await fetch(
-      `https://api.spotify.com/v1/me/player/shuffle?state=${newShuffleState}&device_id=${deviceId}`,
-      { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-  };
-
-  const toggleRepeat = async () => {
-    if (!accessToken || !deviceId) return;
-    const newRepeatState = !repeatActive;
-    setRepeatActive(newRepeatState);
-
-    await fetch(
-      `https://api.spotify.com/v1/me/player/repeat?state=${newRepeatState ? 'context' : 'off'}&device_id=${deviceId}`,
-      { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-  };
-
-  const togglePlayPause = () => {
-    if (!player) return;
-    player.togglePlay().catch((e) => console.error(e));
-  };
-
-  const onPrevious = () => {
-    if (!player) return;
-    player.previousTrack().catch((e) => console.error(e));
-  };
-
-  const onNext = () => {
-    if (!player) return;
-    player.nextTrack().catch((e) => console.error(e));
-  };
-
-  const handleVolumeChange = (e) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    e.target.style.setProperty('--value', `${newVolume * 100}%`);
-
-    if (player) {
-      player.setVolume(newVolume).catch((err) => console.error(err));
+    try {
+      const res = await fetch(`http://localhost:5000/get_access_token/${spotifyId}`);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Failed to get access token:', res.status, text);
+        return null;
+      }
+      const data = await res.json();
+      return data.access_token;
+    } catch (err) {
+      console.error('Error fetching access token:', err);
+      return null;
     }
   };
 
-  // Fetch currently playing track from any device
+  // --- Fetch currently playing track ---
   const fetchCurrentPlaybackState = async (token) => {
+    if (!token) return;
     try {
       const res = await fetch('https://api.spotify.com/v1/me/player', {
         headers: { Authorization: `Bearer ${token}` },
@@ -110,13 +80,11 @@ function PlayerBar() {
       if (data.item) {
         setTrack({
           name: data.item.name,
-          artists: data.item.artists.map((a) => a.name).join(', '),
+          artists: data.item.artists.map(a => a.name).join(', '),
           albumImage: data.item.album.images[0].url,
         });
         setDurationMs(data.item.duration_ms);
-      } else {
-        setTrack(null);
-      }
+      } else setTrack(null);
 
       setIsPlaying(data.is_playing);
       setShuffleActive(data.shuffle_state);
@@ -129,16 +97,68 @@ function PlayerBar() {
           type: data.device.type,
           isActive: data.device.is_active,
         });
+        setDeviceId(data.device.id || data.device.device_id);
       }
     } catch (err) {
       console.error('Error fetching playback state:', err);
     }
   };
 
+  // --- Player control functions ---
+  const togglePlayPause = () => {
+    if (!player) return;
+    player.togglePlay().catch(console.error);
+  };
+
+  const onPrevious = () => {
+    if (!player) return;
+    player.previousTrack().catch(console.error);
+  };
+
+  const onNext = () => {
+    if (!player) return;
+    player.nextTrack().catch(console.error);
+  };
+
+  const toggleShuffle = async () => {
+    const token = await getAccessToken();
+    if (!token || !deviceId) return;
+
+    const newState = !shuffleActive;
+    setShuffleActive(newState);
+
+    fetch(`https://api.spotify.com/v1/me/player/shuffle?state=${newState}&device_id=${deviceId}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(console.error);
+  };
+
+  const toggleRepeat = async () => {
+    const token = await getAccessToken();
+    if (!token || !deviceId) return;
+
+    const newState = !repeatActive;
+    setRepeatActive(newState);
+
+    fetch(`https://api.spotify.com/v1/me/player/repeat?state=${newState ? 'context' : 'off'}&device_id=${deviceId}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(console.error);
+  };
+
+  const handleVolumeChange = (e) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    e.target.style.setProperty('--value', `${newVolume * 100}%`);
+
+    if (player) player.setVolume(newVolume).catch(console.error);
+  };
+
+  // --- Initialize Spotify Web Playback SDK ---
   useEffect(() => {
     const initPlayer = async () => {
       const token = await getAccessToken();
-      setAccessToken(token);
+      if (!token) return;
 
       const script = document.createElement('script');
       script.src = 'https://sdk.scdn.co/spotify-player.js';
@@ -146,19 +166,19 @@ function PlayerBar() {
       document.body.appendChild(script);
 
       window.onSpotifyWebPlaybackSDKReady = () => {
-        const player = new window.Spotify.Player({
+        const p = new window.Spotify.Player({
           name: 'React Spotify Player',
-          getOAuthToken: (cb) => cb(token),
+          getOAuthToken: cb => cb(token),
           volume: 0.5,
         });
 
-        player.addListener('player_state_changed', (state) => {
+        p.addListener('player_state_changed', state => {
           if (!state) return;
           const currentTrack = state.track_window.current_track;
           if (currentTrack) {
             setTrack({
               name: currentTrack.name,
-              artists: currentTrack.artists.map((a) => a.name).join(', '),
+              artists: currentTrack.artists.map(a => a.name).join(', '),
               albumImage: currentTrack.album.images[0].url,
             });
           }
@@ -167,21 +187,16 @@ function PlayerBar() {
           setDurationMs(state.duration);
         });
 
-        player.addListener('ready', ({ device_id }) => {
+        p.addListener('ready', ({ device_id }) => {
           setDeviceId(device_id);
-          // **Removed transferPlaybackHere()** so web player doesn't take over
         });
 
-        player.connect();
-        setPlayer(player);
+        p.connect();
+        setPlayer(p);
       };
 
-      // Poll every 5 seconds for any active playback
-      const intervalId = setInterval(() => {
-        fetchCurrentPlaybackState(token);
-      }, 5000);
-
-      // initial fetch
+      // Poll every 5s
+      const intervalId = setInterval(() => fetchCurrentPlaybackState(token), 5000);
       fetchCurrentPlaybackState(token);
 
       return () => {
@@ -217,52 +232,27 @@ function PlayerBar() {
         )}
       </div>
 
-      {/* Center */}
+      {/* Center controls */}
       <div className="controls-section">
         <div className="controls">
-          <button
-            className={`shuffle ${shuffleActive ? 'active' : ''}`}
-            onClick={toggleShuffle}
-            aria-label="Shuffle"
-          >
+          <button className={`shuffle ${shuffleActive ? 'active' : ''}`} onClick={toggleShuffle}>
             <FontAwesomeIcon icon={faRandom} />
           </button>
-
-          <button onClick={onPrevious} aria-label="Previous">
-            <FontAwesomeIcon icon={faBackward} />
-          </button>
-
-          <button
-            className="play-pause"
-            onClick={togglePlayPause}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
+          <button onClick={onPrevious}><FontAwesomeIcon icon={faBackward} /></button>
+          <button className="play-pause" onClick={togglePlayPause}>
             <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
           </button>
-
-          <button onClick={onNext} aria-label="Next">
-            <FontAwesomeIcon icon={faForward} />
-          </button>
-
-          <button
-            className={`repeat ${repeatActive ? 'active' : ''}`}
-            onClick={toggleRepeat}
-            aria-label="Repeat"
-          >
+          <button onClick={onNext}><FontAwesomeIcon icon={faForward} /></button>
+          <button className={`repeat ${repeatActive ? 'active' : ''}`} onClick={toggleRepeat}>
             <FontAwesomeIcon icon={faRepeat} />
           </button>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress */}
         <div className="progress-container">
           <span className="time">{formatTime(progressMs)}</span>
           <div className="progress-bar">
-            <div
-              className="progress"
-              style={{
-                width: durationMs ? `${(progressMs / durationMs) * 100}%` : "0%",
-              }}
-            ></div>
+            <div className="progress" style={{ width: durationMs ? `${(progressMs / durationMs) * 100}%` : '0%' }}></div>
           </div>
           <span className="time">{formatTime(durationMs)}</span>
         </div>
@@ -270,9 +260,7 @@ function PlayerBar() {
 
       {/* Right */}
       <div className="player-right">
-        <button aria-label="Queue">
-          <FontAwesomeIcon icon={faList} />
-        </button>
+        <button><FontAwesomeIcon icon={faList} /></button>
         <FontAwesomeIcon icon={faVolumeHigh} />
         <input
           type="range"

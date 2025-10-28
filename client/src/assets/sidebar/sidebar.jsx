@@ -1,5 +1,8 @@
 import React, { useEffect } from "react";
 import "./sidebar.css";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTableList } from "@fortawesome/free-solid-svg-icons";
+
 
 const Library = ({ isCollapsed, setIsCollapsed }) => {
   const handleToggle = () => {
@@ -21,8 +24,10 @@ const Library = ({ isCollapsed, setIsCollapsed }) => {
   return (
     <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
       <div className="sidebar-header">
-       
-        <button id="toggleBtn" onClick={handleToggle}>☰</button>
+
+        <button id="toggleBtn" onClick={handleToggle}>
+          <FontAwesomeIcon icon={faTableList} />
+        </button>
       </div>
 
       <div className="filters">
@@ -35,7 +40,7 @@ const Library = ({ isCollapsed, setIsCollapsed }) => {
 
       <div className="library-list">
         <div className="library-item">
-          
+
           <div className="item-info">
             
           </div>

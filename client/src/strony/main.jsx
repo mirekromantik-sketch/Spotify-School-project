@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../assets/sidebar/sidebar.jsx';
-import './CSS/main.css';
-import PlayerBar from '../assets/playerbar/playerbar.jsx';
+ import PlayerBar from '../assets/playerbar/playerbar.jsx';
 import Queue from '../assets/queue/queue.jsx';
 import TopNav from '../assets/Topnav/TopNav.jsx';
+import './CSS/main.css';
 
 function Main() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div
@@ -15,20 +17,12 @@ function Main() {
         gridTemplateColumns: `${isCollapsed ? "80px" : "250px"} 1fr 270px`,
       }}
     >
-      {/* Top navigation */}
       <TopNav />
-
-      {/* Sidebar */}
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-
-      {/* Main content */}
       <div className={`main ${isCollapsed ? "collapsed" : ""}`}>
         <p></p>
       </div>
-
       <Queue />
-
-      {/* PlayerBar */}
       <PlayerBar />
     </div>
   );
