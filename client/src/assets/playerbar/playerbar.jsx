@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPlay,
@@ -9,6 +9,7 @@ import {
   faRepeat,
   faVolumeHigh,
   faList,
+  faMobile,
 } from '@fortawesome/free-solid-svg-icons';
 import '../playerbar/playerbar.css';
 
@@ -23,8 +24,11 @@ function PlayerBar() {
   const [deviceInfo, setDeviceInfo] = useState(null);
   const [progressMs, setProgressMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
+  const [devices, setDevices] = useState([]);
+  const [showDevices, setShowDevices] = useState(false);
+  const progressBarRef = useRef(null);
 
-  // --- Helper to format time ---
+  // --- Helper: format time (ms → mm:ss) ---
   const formatTime = (ms) => {
     if (!ms) return '0:00';
     const minutes = Math.floor(ms / 60000);
@@ -55,7 +59,7 @@ function PlayerBar() {
     }
   };
 
-  // --- Fetch currently playing track ---
+  // --- Fetch playback state (track info + progress) ---
   const fetchCurrentPlaybackState = async (token) => {
     if (!token) return;
     try {
@@ -99,6 +103,12 @@ function PlayerBar() {
         });
         setDeviceId(data.device.id || data.device.device_id);
       }
+
+      // update progress bar
+      if (progressBarRef.current && data.item?.duration_ms) {
+        const progressPercentage = (data.progress_ms / data.item.duration_ms) * 100;
+        progressBarRef.current.style.setProperty('--progress', `${progressPercentage}%`);
+      }
     } catch (err) {
       console.error('Error fetching playback state:', err);
     }
@@ -109,24 +119,14 @@ function PlayerBar() {
     if (!player) return;
     player.togglePlay().catch(console.error);
   };
-
-  const onPrevious = () => {
-    if (!player) return;
-    player.previousTrack().catch(console.error);
-  };
-
-  const onNext = () => {
-    if (!player) return;
-    player.nextTrack().catch(console.error);
-  };
+  const onPrevious = () => player?.previousTrack().catch(console.error);
+  const onNext = () => player?.nextTrack().catch(console.error);
 
   const toggleShuffle = async () => {
     const token = await getAccessToken();
     if (!token || !deviceId) return;
-
     const newState = !shuffleActive;
     setShuffleActive(newState);
-
     fetch(`https://api.spotify.com/v1/me/player/shuffle?state=${newState}&device_id=${deviceId}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },
@@ -136,10 +136,8 @@ function PlayerBar() {
   const toggleRepeat = async () => {
     const token = await getAccessToken();
     if (!token || !deviceId) return;
-
     const newState = !repeatActive;
     setRepeatActive(newState);
-
     fetch(`https://api.spotify.com/v1/me/player/repeat?state=${newState ? 'context' : 'off'}&device_id=${deviceId}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },
@@ -150,11 +148,43 @@ function PlayerBar() {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
     e.target.style.setProperty('--value', `${newVolume * 100}%`);
-
-    if (player) player.setVolume(newVolume).catch(console.error);
+    player?.setVolume(newVolume).catch(console.error);
   };
 
-  // --- Initialize Spotify Web Playback SDK ---
+  // --- Devices handling ---
+  const fetchDevices = async () => {
+    const token = await getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch('https://api.spotify.com/v1/me/player/devices', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setDevices(data.devices);
+    } catch (err) {
+      console.error('Error fetching devices:', err);
+    }
+  };
+  const handleDeviceClick = async () => {
+    setShowDevices(!showDevices);
+    if (!devices.length) await fetchDevices();
+  };
+  const transferPlayback = async (id) => {
+    const token = await getAccessToken();
+    if (!token) return;
+    try {
+      await fetch('https://api.spotify.com/v1/me/player', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_ids: [id], play: true }),
+      });
+      setShowDevices(false);
+    } catch (err) {
+      console.error('Error transferring playback:', err);
+    }
+  };
+
+  // --- Initialize Web Playback SDK ---
   useEffect(() => {
     const initPlayer = async () => {
       const token = await getAccessToken();
@@ -188,15 +218,18 @@ function PlayerBar() {
         });
 
         p.addListener('ready', ({ device_id }) => {
+          console.log('Player ready with device ID', device_id);
           setDeviceId(device_id);
         });
 
-        p.connect();
+        p.connect().then(success => {
+          if (success) console.log('Web Playback SDK connected');
+        });
+
         setPlayer(p);
       };
 
-      // Poll every 5s
-      const intervalId = setInterval(() => fetchCurrentPlaybackState(token), 5000);
+      const intervalId = setInterval(() => fetchCurrentPlaybackState(token), 1000);
       fetchCurrentPlaybackState(token);
 
       return () => {
@@ -208,6 +241,19 @@ function PlayerBar() {
     initPlayer();
   }, []);
 
+  // --- Transfer playback button ---
+  const handlePlayOnThisDevice = async () => {
+    if (!deviceId) return console.warn('No device ID available');
+    const token = await getAccessToken();
+    if (!token) return;
+    await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_ids: [deviceId], play: true }),
+    });
+    console.log('Playback transferred to SDK device');
+  };
+
   return (
     <div className="playbar">
       {/* Left */}
@@ -218,21 +264,13 @@ function PlayerBar() {
             <div className="track-info">
               <div className="track-title">{track.name}</div>
               <div className="track-artist">{track.artists}</div>
-              {deviceInfo && (
-                <div className="device-info">
-                  Playing on: {deviceInfo.name} ({deviceInfo.type})
-                </div>
-              )}
+              {deviceInfo && <div className="device-info">Playing on: {deviceInfo.name} ({deviceInfo.type})</div>}
             </div>
           </>
-        ) : (
-          <div className="track-info">
-            <div className="track-title">No track playing</div>
-          </div>
-        )}
+        ) : <div className="track-info"><div className="track-title">No track playing</div></div>}
       </div>
 
-      {/* Center controls */}
+      {/* Center */}
       <div className="controls-section">
         <div className="controls">
           <button className={`shuffle ${shuffleActive ? 'active' : ''}`} onClick={toggleShuffle}>
@@ -251,9 +289,7 @@ function PlayerBar() {
         {/* Progress */}
         <div className="progress-container">
           <span className="time">{formatTime(progressMs)}</span>
-          <div className="progress-bar">
-            <div className="progress" style={{ width: durationMs ? `${(progressMs / durationMs) * 100}%` : '0%' }}></div>
-          </div>
+          <input type="range" min="0" max={durationMs} value={progressMs} readOnly ref={progressBarRef} />
           <span className="time">{formatTime(durationMs)}</span>
         </div>
       </div>
@@ -261,16 +297,33 @@ function PlayerBar() {
       {/* Right */}
       <div className="player-right">
         <button><FontAwesomeIcon icon={faList} /></button>
+        <div className="device-icon-wrapper">
+          <button onClick={handleDeviceClick} className="device-icon">
+            <FontAwesomeIcon icon={faMobile} />
+          </button>
+          {showDevices && (
+            <div className="device-popup">
+              <div className="device-popup-header">Available Devices</div>
+              <div className="device-popup-list">
+                {devices.length === 0 ? (
+                  <div className="device-popup-item">No devices found</div>
+                ) : (
+                  devices.map(d => (
+                    <div key={d.id} className="device-popup-item" onClick={() => transferPlayback(d.id)}>
+                      {d.name} {d.is_active ? '🎵' : ''}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         <FontAwesomeIcon icon={faVolumeHigh} />
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={handleVolumeChange}
-          className="volume-slider"
-        />
+        <input type="range" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange} className="volume-slider" />
+
+        {/* New SDK transfer button */}
+        <button onClick={handlePlayOnThisDevice} style={{ marginLeft: '10px' }}>Play on this device</button>
       </div>
     </div>
   );
